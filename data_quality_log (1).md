@@ -29,6 +29,14 @@ This log records what was checked in the 8 Home Credit data tables (plus the col
 
 **Target (verified):** `TARGET` exists in app_train only. app_test has no `TARGET`, so any analysis of default must use app_train (307,511 applicants). app_test cannot be used for labelled results.
 
+**Source documentation (verified; table-level lines from the Kaggle Data page, not the column-level lines):**
+- `application_train` and `application_test`: one row represents one loan in the data sample. Only the train file has `TARGET`.
+- `bureau`: all previous credits from other institutions reported to the credit bureau, for clients who have a loan in the sample, one row per credit.
+- `bureau_balance`: one row per month of history of each credit in `bureau`, only for months where some history is observable.
+- `POS_CASH_balance` and `credit_card_balance`: monthly snapshots of previous point-of-sale and cash loans, and of credit cards, that the applicant had with Home Credit.
+- `previous_application`: all previous Home Credit applications of clients who have a loan in the sample, one row per previous application. The page does not say whether refused applications are included.
+- `installments_payments`: one row for every payment made plus one row for each missed payment; one row is one instalment of one previous Home Credit credit.
+
 ## 2. Null profile
 
 The first output printed a **fraction**, not a percentage (0.0026 means 0.26%). All percentages below are fraction x 100, with the table's row count as denominator.
@@ -80,7 +88,7 @@ Observations (verified as printed):
 | 3 | `0 nulls` does not mean `clean`: placeholder values are not detected by a null check | verified for `DAYS_EMPLOYED` and `CODE_GENDER` (issues 7 and 8), other columns still to check | Run sentinel and placeholder checks before any cleaning decision (open item 2) |
 | 4 | Description file has a stray `Unnamed: 0` column (an exported index) | verified | Drop it, or read with `index_col=0`. `Special` column is 60.73% null (133 of 219) and not used in analysis |
 | 5 | Nulls in credit_card drawings and previous_app terms may mean "not applicable" or "zero", not "unknown" | hypothesis | Decide only after checking against `NAME_CONTRACT_STATUS`, balance and drawing counts |
-| 6 | Installments: DAYS_ENTRY_PAYMENT and AMT_PAYMENT both null in 2,905 rows (0.021%), possibly unpaid or unrecorded instalments | hypothesis | Check whether they are the same rows and what the due dates look like before flagging |
+| 6 | Installments: DAYS_ENTRY_PAYMENT and AMT_PAYMENT both null in 2,905 rows (0.021%), possibly unpaid or unrecorded instalments | hypothesis, supported by the documentation | The Data page says missed payments have their own rows, so these may be the missed payments. Check that both columns are null on the same rows and what the due dates look like before flagging |
 | 7 | `DAYS_EMPLOYED` has 0 nulls but holds the placeholder 365243 (about 1,000 years) | verified | 55,374 applicants (18.01% of 307,511). Default rate 5.40% for placeholder rows against 8.66% for all others (weighted result 8.07%, matches the baseline). Proposed rule: keep every row, add flag `days_employed_placeholder` (`yes`/`no`), and in the cleaned table set the value to NULL so averages are not distorted. Not yet applied. Because the two groups default at different rates, the flag is kept as information, not just removed |
 | 8 | `CODE_GENDER` has the value `XNA` | verified | 4 rows (202,448 F + 105,059 M + 4 XNA = 307,511). Proposed: flag and keep, no filling |
 | 9 | `ORGANIZATION_TYPE` has the value `XNA` on exactly the same rows as the `DAYS_EMPLOYED` placeholder | verified | 55,374 rows with `XNA`, 55,374 with `days_employed = 365243`, and 55,374 with both conditions, so the two groups are identical (one group of 18.01% of applicants with both fields missing, not two problems). Proposed: one flag `employment_info_missing` covers both, keep every row, set both fields to NULL in the cleaned table. Not yet applied |
@@ -127,7 +135,7 @@ Definitions: **applicant** = one row of `app_train` (307,511). **Longest previou
 - Statuses 1 to 5 together are 342,943 rows (1.26%). Status 5 has more rows than statuses 2, 3 and 4 combined (62,406 against 38,190). Hypothesis, not tested: status 5 is a state a loan stays in once it gets there, so it repeats every month. The meaning of each code is from memory and still to be confirmed in the description file.
 - At loan level, 448,876 of 817,395 distinct loans (54.92%) have at least one `X` month (verified from a loan-level count; 817,395 is the number of rows after `GROUP BY sk_id_bureau`, and the six test categories add up to it). All 398,776 unclassified loans contain an `X` (count of unclassified with `x_flag > 0` = 398,776), so the missing rule is the `X` rule and nothing else. The other 50,100 loans with an `X` (448,876 minus 398,776) cannot be in the `safe` group, whose rule requires no `X`, so they sit in the four delay groups (103,264 loans in total); that is 48.5% of delayed loans with at least one unknown month (derived from verified counts).
 - Counts are loan-months. Loan-level categories are in Finding 2.
-- **Independent check (Kaggle Data Explorer panel, screenshot):** C 50%, 0 27%, and "Other" 6,153,425 rows. Our own counts for X, 1, 2, 3, 4 and 5 add up to the same 6,153,425 (5,810,482 + 242,347 + 23,419 + 8,924 + 5,847 + 62,406), so the status distribution is confirmed from two sources. The panel shows `MONTHS_BALANCE` ranging from -96 to 0 (histogram axis, confirm with a min/max query), so month 0 exists and the history spans up to 97 months.
+- **Independent check (Kaggle Data Explorer panel, screenshot):** C 50%, 0 27%, and "Other" 6,153,425 rows. Our own counts for X, 1, 2, 3, 4 and 5 add up to the same 6,153,425 (5,810,482 + 242,347 + 23,419 + 8,924 + 5,847 + 62,406), so the status distribution is confirmed from two sources. A public third-party notebook prints the same eight counts, a third match. The panel shows `MONTHS_BALANCE` ranging from -96 to 0 (histogram axis, confirm with a min/max query), so month 0 exists and the history spans up to 97 months.
 - **Source documentation (verified, table-level line only):** the description file says `bureau_balance` has one row for each month of history of every previous credit reported to the credit bureau, and that rows exist only for months where some history is observable. This confirms one row = one previous credit in one month, and that the number of months differs between credits (it is not a fixed 12). The column-level descriptions of `STATUS` and `MONTHS_BALANCE` have not been read yet, so the code meanings stay unconfirmed.
 
 ### Finding 2: credit history categories per loan in `bureau_balance`
@@ -234,6 +242,106 @@ Unit: one `app_train` application (`SK_ID_CURR`). Built in three layers: loan-le
 - Rough margins of error (own estimate, not computed): about 0.2 points for none, 0.35 for mild and 1.2 for heavy. The gap between none and mild is clearly larger than that; the gap between mild and heavy is not clearly different from zero.
 - Limits: association only, no controls (income, age, contract type and others). `none` still includes applicants whose loans have unknown (`X`) months. The worst delay depends on the number of loans, since more loans give more chances of a delay, which is not controlled. Only 29.99% of applicants have monthly history. The meaning of the status codes is still unverified.
 
+### Finding 7: annuity-to-income ratio and default rate (`app_train`)
+
+Unit: one application. Ratio = `AMT_ANNUITY` / `AMT_INCOME_TOTAL` x 100, rounded to 2 decimals. `AMT_ANNUITY` is the regular payment (from memory). The periods of the two columns (for example monthly payment against yearly income) are not yet verified from the column descriptions, so the ratio is not read as a share of monthly income.
+
+| Ratio band | Applications | Share |
+|---|---|---|
+| up to 20% | 202,463 | 65.84% |
+| over 20% to 40% | 97,129 | 31.59% |
+| over 40% to 60% | 6,988 | 2.27% |
+| over 60% to 80% | 745 | 0.24% |
+| over 80% to 100% | 141 | 0.05% |
+| over 100% | 33 | 0.01% |
+| annuity missing | 12 | 0.00% |
+| **Total** | **307,511** | **100.00%** |
+
+- Reconciliation (verified): the bands add up to 307,511. The 12 missing rows match the 12 null `AMT_ANNUITY` values in the null profile. The coarser bands from the first run also match (over 40% to 80%: 6,988 + 745 = 7,733; over 80%: 141 + 33 = 174).
+- 33 applications (0.01%) have an annuity above their recorded income. Rows above 100% could be data errors, unusual loans, or a period mismatch between the two columns (not tested).
+- Derived: 7,907 applications (2.57%) are above 40%.
+- The bands above 40% are small, so they were merged for the default rate. The over-100% group (33 applications) is too small for a rate and is not reported separately.
+
+Default rate by merged band (default rate = defaults divided by the group's own size):
+
+| Ratio band | Applications | Defaults | Default rate | Gap to 8.07% |
+|---|---|---|---|---|
+| up to 20% | 202,463 | 15,807 | 7.81% | -0.26 points |
+| over 20% to 40% | 97,129 | 8,364 | 8.61% | +0.54 points |
+| over 40% | 7,907 | 654 | 8.27% | +0.20 points |
+| annuity missing | 12 | 0 | 0.00% | too small to read |
+| **Total** | **307,511** | **24,825** | **8.07%** | |
+
+- Reconciliation (verified): applications add up to 307,511 and defaults to 24,825.
+- The separation is weak. The three bands lie within 0.8 points of each other, and the rate does not rise step by step (7.81%, 8.61%, 8.27%). For comparison, the worst-delay groups in Finding 6 span 3.6 points (7.22% to 10.80%).
+- Rough margins of error (own estimate, not computed): about 0.12 points for up to 20%, 0.18 for over 20% to 40% and 0.6 for over 40%. The gap between the first two bands (0.80 points) is larger than these margins; the over-40% band is not clearly different from either neighbour or from the baseline.
+- Limits: association only; the periods of the two columns are unverified; income level and contract type are not controlled.
+
+### Finding 8: default rate by past refusal (`previous_app` and `app_train`)
+
+Unit: one application (`SK_ID_CURR`). Previous applications were reduced to one row per `SK_ID_CURR` (counts of rows with `NAME_CONTRACT_STATUS` = Approved, Refused, Unused offer and Canceled), then left joined from `app_train`, so applicants without any previous application stay in as their own group. Each applicant gets one group, checked in this order: no previous application; at least one refused (even if also approved); at least one approved and no refusal; only unused offers; only cancelled. Default rate = defaults divided by the group's own size. Assumption: every `app_train` row is a granted loan (the Data page calls a row one loan in the sample); supported by the documentation, not proven. The meaning of the status values is from common usage, not documentation.
+
+| Group | Applicants | Share | Defaults | Default rate | Gap to 8.07% |
+|---|---|---|---|---|---|
+| No previous application | 16,454 | 5.35% | 980 | 5.96% | -2.11 points |
+| Approved, never refused | 190,370 | 61.91% | 13,472 | 7.08% | -0.99 points |
+| At least one refused | 100,294 | 32.62% | 10,352 | 10.32% | +2.25 points |
+| Only cancelled | 227 | 0.07% | 8 | 3.52% | too small to read |
+| Only unused offer | 166 | 0.05% | 13 | 7.83% | too small to read |
+| **Total** | **307,511** | **100.00%** | **24,825** | **8.07%** | |
+
+- Reconciliation (verified): groups add up to 307,511 applicants and 24,825 defaults, and each rate recomputes from the counts. The first version of this analysis had one "none refused" group (190,763 applicants, 13,493 defaults, 7.07%); the split matches it exactly (190,370 + 227 + 166 = 190,763 applicants; 13,472 + 8 + 13 = 13,493 defaults).
+- No applicant fell into a leftover "mixed history" group, so every applicant with a previous application has at least one of the four counted statuses (derived; value counts of the status column are still to be checked against 1,670,214).
+- Applicants with at least one earlier refusal default at 10.32%, against 7.08% for applicants with an approval and no refusal: 3.24 points higher, about 1.46 times (derived). Rough margins of error (own estimate): about 0.2 points for each of the two large groups, so the gap is much larger than the margin.
+- Derived: the refused group is 32.62% of applicants but 41.70% of all defaults (10,352 of 24,825).
+- The two small groups (227 and 166 applicants, together 0.21% of the earlier "none refused" group) have margins of roughly 2 and 4 points (own estimate) and are not interpreted. An applicant with both an unused offer and a cancelled application is placed in the "only unused offer" group because of the order of the rules.
+- Limits: association only. The number of earlier applications (exposure) is not controlled; an applicant with many earlier applications has more chances of a refusal. Refusal reasons and timing are not examined. Applicants who were refused and never received a loan are not in `app_train` (selection).
+
+### Profile: credit currency in `bureau` (rows are credits, not applicants)
+
+| CREDIT_CURRENCY | Credits | Share |
+|---|---|---|
+| currency 1 | 1,715,020 | 99.92% |
+| currency 2 | 1,224 | 0.07% |
+| currency 3 | 174 | 0.01% |
+| currency 4 | 10 | 0.00% |
+| **Total** | **1,716,428** | **100.00%** |
+
+- The counts add up to the 1,716,428 rows of `bureau` (verified).
+- Only 1,408 credits (0.08%) are not in currency 1, so at most 1,408 applicants (at most 0.46% of 307,511, derived) can have such a credit, and fewer of them are in `app_train`. At roughly an 8% default rate a group of that size has a margin of error of at least 1.4 points (own estimate), so a default-rate comparison by currency was judged too small to be useful and was not run. Currencies 3 and 4 (174 and 10 credits) cannot support any rate.
+- The values are stored as codes ("currency 1" to "currency 4"). Which one is the home currency is not documented in the data; the idea that currency 1 is the home currency is from outside sources and unverified.
+
+### Finding 9: credit card utilization and default (`credit_card` and `app_train`)
+
+Unit: one application (`SK_ID_CURR`). For each card-month, utilization = `AMT_RECEIVABLE_PRINCIPAL` / `AMT_CREDIT_LIMIT_ACTUAL` x 100, and the month is flagged if utilization is above 90 and both the balance and the principal are non-zero. Flagged months are summed per applicant (one row per applicant), then left joined from `app_train`, so applicants without any card rows are their own group. The meanings of the three amount columns are inferred from column names and a few printed rows (limit = card limit, principal = amount still owed, balance a little higher than principal), not read in the description file. The 90% cut-off is a choice.
+
+Group = number of flagged card-months per applicant:
+
+| Group | Applicants | Share | Defaults | Default rate | Gap to 8.07% |
+|---|---|---|---|---|---|
+| No card rows | 220,606 | 71.74% | 17,291 | 7.84% | -0.23 points |
+| 0 flagged months | 42,756 | 13.90% | 2,539 | 5.94% | -2.13 points |
+| 1 to 10 | 28,500 | 9.27% | 3,465 | 12.16% | +4.09 points |
+| 11 to 20 | 7,928 | 2.58% | 854 | 10.77% | +2.70 points |
+| 21 to 30 | 3,620 | 1.18% | 338 | 9.34% | +1.27 points |
+| 31 to 40 | 1,880 | 0.61% | 149 | 7.93% | -0.14 points |
+| over 40 | 2,221 | 0.72% | 189 | 8.51% | +0.44 points |
+| **Total** | **307,511** | **100.00%** | **24,825** | **8.07%** | |
+
+- Reconciliation (verified): groups add up to 307,511 applicants and 24,825 defaults, and each rate recomputes from the counts. The empty group label in the output means no rows in `credit_card` (derived: every applicant with card rows appears in the roll-up). 86,905 applicants (28.26%) have card rows (derived).
+- Derived summary (counts added, not rates averaged):
+
+| Group | Applicants | Defaults | Default rate |
+|---|---|---|---|
+| Card rows, never above 90% | 42,756 | 2,539 | 5.94% |
+| Card rows, at least one month above 90% | 44,149 | 4,995 | 11.31% |
+| No card rows | 220,606 | 17,291 | 7.84% |
+
+  Applicants with at least one month above 90% default about 1.9 times as often as card holders who never did (5.37 points apart; rough margins of error about 0.3 and 0.2 points, own estimate).
+- The finer groups are not a clean measure of "maxing out": the group is a count of months, so it also reflects how long the card history is. Default rate falls from 12.16% to 7.93% as the count rises from 1 to 10 up to 31 to 40, then rises slightly to 8.51%. This pattern is not explained; the number of card-months per group was not printed. A share of months (flagged months divided by card-months) would separate maxing out from history length.
+- "Never above 90%" also includes cards that were never used (zero balance).
+- Limits: association only; the timing of the flagged months (recent or long ago) is not used; a limit of zero or less was not guarded; the cut-off is a choice; applicants with a card record are a minority (28.26%).
+
 ## 5. Limits
 
 - **Association only.** None of the findings show cause. Only Finding 5 looks inside a second variable (contract type); income, age, job type, loan size and similar factors are not controlled anywhere.
@@ -241,14 +349,14 @@ Unit: one `app_train` application (`SK_ID_CURR`). Built in three layers: loan-le
 - **"None" means no recorded delay, not paid on time.** It includes loans and applicants with unknown (`X`) months: 54.92% of loans have at least one `X` month.
 - **Worst delay depends on the number of loans.** An applicant with more loans has more chances of a delay. This is not controlled.
 - **Small groups.** The heavy-delay group (2,611 applicants) and the revolving-loan groups are small. Margins of error quoted in the findings are rough estimates, not computed.
-- **Applicant means one application.** One `SK_ID_CURR` is one application. The data has no separate person ID, so unique customers cannot be counted.
+- **Applicant means one row of the application table.** The Data page describes one row as one loan in the sample. `app_train` has no separate person ID column, so unique customers cannot be counted.
 - **Gender is a sensitive attribute.** Finding 5 describes this dataset only. It is not a recommendation to use gender in credit decisions.
 - **Scope.** Only `app_train` has `TARGET` (`app_test` is not used for results). The findings describe this Kaggle dataset, not lenders or borrowers in general.
 - **Not built.** No cleaned tables, no predictive model, no PostgreSQL schema, no dashboard.
 
 ## 6. Assumptions not yet verified
 
-- Status codes in `bureau_balance`: `C` = closed, `X` = unknown, `0` = no delay, `1` to `5` = increasing delay. These meanings are from memory. The column-level lines of the description file were not found; only the table-level line was read.
+- Status codes in `bureau_balance`: `C` = closed, `X` = unknown, `0` = no delay, `1` to `5` = increasing delay. These meanings are from memory. A public third-party notebook (not official documentation) uses the same meanings (`1` to `4` as days past due, `5` labelled sold by its author) and prints the same eight status counts as this log, which supports but does not confirm them. The column-level lines of the description file have not been read; only the table-level lines from the Data page were.
 - `MONTHS_BALANCE` counts months backwards from the application date. The range of -96 to 0 comes from the Kaggle data panel and is not yet confirmed with a min/max query.
 - Instalment buckets in Finding 1 assume monthly instalments.
 - `bureau` probably contains applicants from `app_test` (the arithmetic is consistent with it, not tested).
@@ -275,9 +383,13 @@ Unit: one `app_train` application (`SK_ID_CURR`). Built in three layers: loan-le
 2. More placeholder and quality checks: 365243 in the `DAYS_*` columns of `previous_app`; confirm that 55,374 equals all rows with `days_employed > 0`; implausible values in `DAYS_*`; extreme `AMT_INCOME_TOTAL`; whitespace and empty strings in text columns.
 3. Who are the 55,374 placeholder applicants (`name_income_type` breakdown)? Hypothesis only so far.
 4. Key integrity: orphan keys between child tables and parents; a direct count of the 263,491 `app_train` applicants with a `bureau` record.
-5. Installments: confirm that `DAYS_ENTRY_PAYMENT` and `AMT_PAYMENT` are null on the same rows, and check `AMT_PAYMENT` against `AMT_INSTALMENT`.
+5. Installments: confirm that `DAYS_ENTRY_PAYMENT` and `AMT_PAYMENT` are null on the same rows, check whether those rows are the missed payments the documentation mentions (look at their due dates), and check `AMT_PAYMENT` against `AMT_INSTALMENT`.
 6. Finding 1: check whether the 37 to 48 bucket gap survives within bands of `amt_credit`, look at the most frequent term values at the bucket edges (12, 24, 36, 48), add medians for income, and count how many of the 18,091 applicants have no rows at all in `pos_cash_balance`.
 7. `bureau_balance`: read the column-level description of `STATUS` and `MONTHS_BALANCE`; check where `X` months sit in time; months per loan (minimum, median, maximum); min and max of `MONTHS_BALANCE`.
 8. Finding 6: print the group sizes in the query output, add the unknown-month flag at applicant level, check default rate by number of linked loans, and control for contract type and income.
 9. Apply the proposed cleaning rules (flags, placeholders set to NULL) in one script with automated row-count and flag-count checks, and save cleaned tables.
 10. Planned, not started: PostgreSQL star schema and a dashboard.
+11. Finding 7 follow-up: read the `AMT_ANNUITY` and `AMT_INCOME_TOTAL` lines in the description CSV (periods), check zero and extreme incomes, and check whether the pattern holds inside cash and revolving loans and inside income bands.
+12. Finding 8 follow-up: value counts of `NAME_CONTRACT_STATUS` in `previous_app` (must add to 1,670,214); average number of previous applications per group and a comparison within bands of that number (exposure); refusal reasons (`CODE_REJECT_REASON`) and timing (`DAYS_DECISION`); confirm the definition of `TARGET` in the description CSV.
+13. `bureau` credit type vs default (next candidate): credits per `CREDIT_TYPE` must add to 1,716,428; roll up to one row per applicant with yes/no flags per type, left join from `app_train`; groups overlap because an applicant can hold several types, so they will not add up to 307,511.
+14. Finding 9 follow-up: read the description lines of `AMT_BALANCE`, `AMT_CREDIT_LIMIT_ACTUAL` and `AMT_RECEIVABLE_PRINCIPAL`; print card-months per group; use the share of flagged months instead of the count; check the ratio distribution (rows above 100%, limit of zero or less); use timing (`MONTHS_BALANCE`) to see whether recent maxing out matters more.
