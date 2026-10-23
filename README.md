@@ -10,7 +10,7 @@ It is a data-analysis project, not a prediction project: **no model was built**,
 |---|---|
 | Profiling of all 8 tables (shapes, nulls, keys) | Done |
 | Placeholder and quality checks | Partly done (two columns checked, more listed in the log) |
-| Six findings (Findings 1 to 6 in the log) | Done |
+| Nine findings (Findings 1 to 9 in the log) | Done (Finding 9 is still being refined) |
 | Cleaned tables | Not done (cleaning rules are proposed, not applied) |
 | Controls for other factors (income, age, and so on) | Not done |
 | PostgreSQL star schema | Planned, not started |
@@ -42,6 +42,9 @@ All numbers are in the data quality log with their evidence and checks.
    Default rises with the severity of past delay. This is an association only.
 6. **Gender and contract type.** Men default more than women on cash loans (10.58% against 7.18%); on revolving loans the gap is small (5.83% against 5.31%) and may be noise. Gender is a sensitive field, and this describes the data only. It is not a suggestion to use gender in credit decisions.
 7. **Previous loan term.** Applicants whose longest earlier cash or point-of-sale loan had 37 to 48 instalments default at 10.52%. Loan size may explain part of this and was not controlled.
+8. **Payment-to-income ratio.** Only 33 applications (0.01%) have a regular payment above their recorded income. Default rate differs by under 1 point across payment-share bands (7.81% up to 20%, 8.61% over 20% to 40%, 8.27% over 40%), a weak signal. The periods of the two columns are not yet verified.
+9. **Past refusals.** 32.62% of applicants had at least one earlier refused application at Home Credit. They default at 10.32%, against 7.08% for applicants with an approved earlier application and no refusal and 5.96% for applicants with no earlier application. Association only; the number of earlier applications is not yet controlled.
+10. **Credit card utilization.** Among the 28.26% of applicants with earlier Home Credit card records, those with at least one month above 90% of the limit default at 11.31%, against 5.94% for card holders who never did and 7.84% for applicants without card records. Association only; the measure mixes in the length of card history and is being refined.
 
 ## Method
 
