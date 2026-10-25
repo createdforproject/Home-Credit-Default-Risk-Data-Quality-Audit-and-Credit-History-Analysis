@@ -1,6 +1,6 @@
 # Data quality log: Home Credit Default Risk
 
-*Last updated: 23 October 2026*
+*Last updated: 25 October 2026*
 
 This log records what was checked in the 8 Home Credit data tables (plus the column description file), the evidence, and the decision taken. Every item is marked **verified** (backed by printed output and cross-checked), **derived** (calculated from printed output, not printed directly) or **hypothesis** (not yet tested).
 
