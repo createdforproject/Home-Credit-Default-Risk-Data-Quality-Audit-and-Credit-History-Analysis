@@ -342,6 +342,24 @@ Group = number of flagged card-months per applicant:
 - "Never above 90%" also includes cards that were never used (zero balance).
 - Limits: association only; the timing of the flagged months (recent or long ago) is not used; a limit of zero or less was not guarded; the cut-off is a choice; applicants with a card record are a minority (28.26%).
 
+### Finding 10: default rate by car and house ownership (`app_train`)
+
+Unit: one application. Groups from `FLAG_OWN_CAR` and `FLAG_OWN_REALTY` (only the values Y and N occurred, since the four groups cover all rows). Written and checked by the author without help.
+
+| Group | Applicants | Share | Defaults | Default rate | Gap to 8.07% | Average income |
+|---|---|---|---|---|---|---|
+| No car, no house | 61,972 | 20.15% | 5,572 | 8.99% | +0.92 points | 152,473 |
+| No car, house | 140,952 | 45.84% | 11,677 | 8.28% | +0.21 points | 155,540 |
+| Car and house | 72,360 | 23.53% | 5,306 | 7.33% | -0.74 points | 195,986 |
+| Car, no house | 32,227 | 10.48% | 2,270 | 7.04% | -1.03 points | 197,131 |
+| **Total** | **307,511** | **100.00%** | **24,825** | **8.07%** | | |
+
+- Reconciliation (verified): groups add up to 307,511 applicants and 24,825 defaults, and each rate recomputes from the counts.
+- Car owners default less (7.04% and 7.33%) than applicants without a car (8.28% and 8.99%), and their average income is higher by about 26% to 29% between groups (derived). A possible explanation is income, which is not tested. Averages are sensitive to extreme incomes; medians were not computed.
+- House ownership is not consistent: among applicants without a car, house owners default 0.71 points less (8.28% against 8.99%, larger than the rough margin of about 0.3 points, own estimate); among car owners the difference is 0.29 points in the other direction (7.33% against 7.04%), within the margin.
+- Derived: applicants without a car number 202,924 (61,972 + 140,952), while `OWN_CAR_AGE` has 202,929 nulls, 5 more. So the nulls are almost, but not exactly, the applicants without a car.
+- Limits: association only; income, age, region and other factors are not controlled.
+
 ## 5. Limits
 
 - **Association only.** None of the findings show cause. Only Finding 5 looks inside a second variable (contract type); income, age, job type, loan size and similar factors are not controlled anywhere.
@@ -393,3 +411,4 @@ Group = number of flagged card-months per applicant:
 12. Finding 8 follow-up: value counts of `NAME_CONTRACT_STATUS` in `previous_app` (must add to 1,670,214); average number of previous applications per group and a comparison within bands of that number (exposure); refusal reasons (`CODE_REJECT_REASON`) and timing (`DAYS_DECISION`); confirm the definition of `TARGET` in the description CSV.
 13. `bureau` credit type vs default (next candidate): credits per `CREDIT_TYPE` must add to 1,716,428; roll up to one row per applicant with yes/no flags per type, left join from `app_train`; groups overlap because an applicant can hold several types, so they will not add up to 307,511.
 14. Finding 9 follow-up: read the description lines of `AMT_BALANCE`, `AMT_CREDIT_LIMIT_ACTUAL` and `AMT_RECEIVABLE_PRINCIPAL`; use the share of flagged months instead of the count (card-months per group already printed); check the ratio distribution (rows above 100%, limit of zero or less); use timing (`MONTHS_BALANCE`) to see whether recent maxing out matters more.
+15. Finding 10 follow-up: compare car and no-car applicants within income bands (does the gap remain?); use median income; check the 5 extra `OWN_CAR_AGE` nulls (count rows with `FLAG_OWN_CAR` = Y and a null car age).
