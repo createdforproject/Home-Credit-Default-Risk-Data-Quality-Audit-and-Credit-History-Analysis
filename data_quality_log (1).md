@@ -1,12 +1,12 @@
 # Data quality log: Home Credit Default Risk
 
-*Last updated: 25 October 2026*
+*Last updated: 31 October 2026*
 
 This log records what was checked in the 8 Home Credit data tables (plus the column description file), the evidence, and the decision taken. Every item is marked **verified** (backed by printed output and cross-checked), **derived** (calculated from printed output, not printed directly) or **hypothesis** (not yet tested).
 
 **Status**
 - Done: table shapes, null profile, placeholder values in two columns, key checks, six analyses (Findings 1 to 6), join and coverage checks.
-- Not done: no cleaned tables were produced (the rules in section 3 are proposed, not applied), no predictive model, no PostgreSQL schema, no dashboard. Open work is in section 8.
+- Not done: no cleaned tables were produced (the rules in section 3 are proposed, not applied), no predictive model, no PostgreSQL schema. A Power BI dashboard is built (three pages: occupation, gender by occupation, credit history); screenshots are to be added to the repository. Open work is in section 8.
 - No rows were deleted at any point.
 
 ## 1. Tables and keys
@@ -360,6 +360,120 @@ Unit: one application. Groups from `FLAG_OWN_CAR` and `FLAG_OWN_REALTY` (only th
 - Derived: applicants without a car number 202,924 (61,972 + 140,952), while `OWN_CAR_AGE` has 202,929 nulls, 5 more. So the nulls are almost, but not exactly, the applicants without a car.
 - Limits: association only; income, age, region and other factors are not controlled.
 
+### Finding 11: default rate by occupation, and by gender within occupation (`app_train`, built in Power BI)
+
+Unit: one application. Source: two pages of the Power BI report built on exported tables; counts and rates were checked against this log (not yet reproduced in a SQL query). `OCCUPATION_TYPE` nulls are shown as "No Data" (96,391 applicants, equal to the null count in the null profile). Default rate = defaults divided by the group's own size.
+
+| Occupation | Applicants | Defaults | Default rate | Gap to 8.07% |
+|---|---|---|---|---|
+| Low-skill Laborers | 2,093 | 359 | 17.15% | +9.08 points |
+| Drivers | 18,603 | 2,107 | 11.33% | +3.26 points |
+| Waiters/barmen staff | 1,348 | 152 | 11.28% | +3.21 points |
+| Security staff | 6,721 | 722 | 10.74% | +2.67 points |
+| Laborers | 55,186 | 5,838 | 10.58% | +2.51 points |
+| Cooking staff | 5,946 | 621 | 10.44% | +2.37 points |
+| Sales staff | 32,102 | 3,092 | 9.63% | +1.56 points |
+| Cleaning staff | 4,653 | 447 | 9.61% | +1.54 points |
+| Realty agents | 751 | 59 | 7.86% | -0.21 points |
+| Secretaries | 1,305 | 92 | 7.05% | -1.02 points |
+| Medicine staff | 8,537 | 572 | 6.70% | -1.37 points |
+| Private service staff | 2,652 | 175 | 6.60% | -1.47 points |
+| No Data | 96,391 | 6,278 | 6.51% | -1.56 points |
+| IT staff | 526 | 34 | 6.46% | -1.61 points |
+| HR staff | 563 | 36 | 6.39% | -1.68 points |
+| Core staff | 27,570 | 1,738 | 6.30% | -1.77 points |
+| Managers | 21,371 | 1,328 | 6.21% | -1.86 points |
+| High skill tech staff | 11,380 | 701 | 6.16% | -1.91 points |
+| Accountants | 9,813 | 474 | 4.83% | -3.24 points |
+| **Total** | **307,511** | **24,825** | **8.07%** | |
+
+- Reconciliation (verified): the 19 rows add up to 307,511 applicants and 24,825 defaults, and each rate recomputes from its counts.
+- Small groups (IT staff 526, HR staff 563, Realty agents 751, Secretaries 1,305) have fewer than 100 defaults each. Their gaps to 8.07% (0.2 to 1.7 points) are within a rough margin of error of about 1.4 to 2 points (own estimate), so they are not clearly different from the average. The gaps of Low-skill Laborers, Drivers, Waiters/barmen staff, Laborers and Cleaning staff are larger than their margins.
+- The occupation chart in the report shows the 16 occupations with at least 1,000 applicants, sorted by default rate; Realty agents, IT staff and HR staff (each under 1,000) are left out of the chart but kept in the table, with a note on the page.
+- Average annuity and average income by occupation are shown in the report and are not logged here; averages are sensitive to extreme incomes.
+
+Gender within occupation (selected rows; men's default rate minus women's, in points). Totals: 105,059 men (10.14%) and 202,448 women (7.00%), a gap of 3.14 points, matching Finding 5.
+
+| Occupation | Men (applicants) | Men default rate | Women (applicants) | Women default rate | Gap |
+|---|---|---|---|---|---|
+| Laborers | 32,047 | 11.77% | 23,139 | 8.92% | +2.85 |
+| No Data | 23,223 | 8.95% | 73,166 | 5.74% | +3.21 |
+| Drivers | 17,678 | 11.48% | 925 | 8.43% | +3.05 |
+| Managers | 9,778 | 7.05% | 11,593 | 5.51% | +1.53 |
+| Core staff | 5,788 | 7.57% | 21,781 | 5.97% | +1.60 |
+| Security staff | 4,683 | 11.21% | 2,038 | 9.67% | +1.54 |
+| High skill tech staff | 4,030 | 5.86% | 7,350 | 6.33% | -0.47 |
+| Sales staff | 3,829 | 9.45% | 28,273 | 9.66% | -0.20 |
+
+- Men default more than women in most large occupations. By a rough margin of error (own estimate), the gap is clear for Laborers, No Data, Managers and Core staff, probably for Drivers (only 925 women), and not clear for Security staff. High skill tech staff and Sales staff show no gap. So the overall gender gap is not only a matter of which occupations men and women hold.
+- Gaps in small cells are not interpreted: Realty agents (62 men, gap +10.78), Secretaries (58 men, +7.06), Medicine staff (240 men, +3.40), Cooking staff (561 men), Cleaning staff (339 men) and others have margins of several points. Waiters/barmen staff is the only occupation where women are above men (-1.87), with 166 men.
+- Cross-check (tooltip in the report): "No Data" women have 4,199 defaults. The first page gives 6,278 defaults for "No Data", which leaves 2,079 for men (derived); 2,079 / 23,223 = 8.95%, the rate shown for men.
+- The gender page covers 307,507 applicants; the 4 applicants with gender `XNA` are excluded (for example, "No Data" is 96,391 on the first page and 96,389 on the second).
+- Limits: association only; income, age and education are not controlled; occupation is missing for 31.35% of applicants.
+
+### Finding 12: default rate by education, and by gender within education (`app_train`, built in Power BI)
+
+Unit: one application. Source: a Power BI page built on exported applicant-level columns; counts and rates were checked against this log (not yet reproduced in a SQL query). This page is not part of the current three-page report. Default rate = defaults divided by the group's own size.
+
+| Education (`NAME_EDUCATION_TYPE`) | Applicants | Defaults | Default rate | Gap to 8.07% |
+|---|---|---|---|---|
+| Lower secondary | 3,816 | 417 | 10.93% | +2.86 points |
+| Secondary / secondary special | 218,391 | 19,524 | 8.94% | +0.87 points |
+| Incomplete higher | 10,277 | 872 | 8.48% | +0.41 points |
+| Higher education | 74,863 | 4,009 | 5.36% | -2.71 points |
+| Academic degree | 164 | 3 | 1.83% | too small to read |
+| **Total** | **307,511** | **24,825** | **8.07%** | |
+
+- Reconciliation (verified): the five rows add up to 307,511 applicants and 24,825 defaults, and each rate recomputes from its counts.
+- Default rate falls as education level rises (10.93%, 8.94%, 8.48%, 5.36%). Rough margins of error (own estimate): about 1.0 point for Lower secondary, 0.1 for Secondary, 0.55 for Incomplete higher and 0.2 for Higher education; the gaps between Lower secondary, Secondary and Higher education are larger than these, while Secondary and Incomplete higher are not clearly different. Academic degree has 164 applicants and 3 defaults and is not interpreted.
+- Average income rises with education in the report (about 130,000 for Lower secondary to about 241,000 for Academic degree), so education and income move together; income is not controlled.
+
+Gender within education (men's rate minus women's rate, in points):
+
+| Education | Men (applicants) | Men's default rate | Women (applicants) | Women's default rate | Gap |
+|---|---|---|---|---|---|
+| Lower secondary | 1,505 | 13.49% | 2,311 | 9.26% | +4.23 |
+| Secondary / secondary special | 74,924 | 11.36% | 143,465 | 7.68% | +3.68 |
+| Incomplete higher | 3,993 | 9.22% | 6,283 | 8.02% | +1.20 |
+| Higher education | 24,573 | 6.39% | 50,289 | 4.85% | +1.54 |
+| Academic degree | 64 | 0.00% | 100 | 3.00% | not read |
+| **Total** | **105,059** | **10.14%** | **202,448** | **7.00%** | **+3.14** |
+
+- Reconciliation (verified): men's defaults add up to 10,655 and women's to 14,170 (together 24,825); men plus women equal the education totals except for 4 applicants with gender `XNA` (2 in Secondary, 1 in Higher education, 1 in Incomplete higher), and defaults match exactly.
+- Men default more than women at every education level with enough applicants. By a rough margin of error (own estimate) the gap is clear for Lower secondary, Secondary and Higher education, and not clear for Incomplete higher. So the gender gap is not only a matter of education level.
+- The "Average Income" column in the report's men and women tables repeats the overall figure (for example 155,158.51 for Secondary in all three tables, 168,797.92 in the total rows), so it is not filtered by gender and is not logged.
+- Limits: association only; income, occupation, age and contract type are not controlled.
+
+### Finding 13: credit-history category rebuilt in Power BI, and default rate by gender within category
+
+Unit: one application. The category was rebuilt without SQL: loan-level counts from `bureau_balance` (817,395 loans), a left join onto `bureau`, a group by `SK_ID_CURR` (305,811 applicants) with sums of mild and heavy months and the number of credits with no monthly history, and a left join onto `app_train` (307,511 applicants). Category rules in order: no history (no credit in `bureau`, or none of the applicant's credits has monthly history), heavy (a status of 4 or 5), mild (a status of 1 to 3), no recorded delay. The first attempt, DAX measures counting applicants who have at least one matching loan, put applicants into several categories at once and counted credits without history as "safe" (84.35% safe, 5.19% no history); it was replaced by the applicant-level category.
+
+| Category | Applicants | Default rate |
+|---|---|---|
+| no recorded delay | 61,179 | 7.22% |
+| mild | 28,441 | 9.88% |
+| heavy | 2,611 | 10.80% |
+| no history | 215,280 | 8.04% |
+| **Total** | **307,511** | **8.07%** |
+
+- Cross-check (verified): the Power BI route reproduces Finding 6 exactly (same counts and rates), so two independent routes (SQL and Power Query with DAX) agree.
+
+Gender within category:
+
+| Category | Men | Men's defaults | Men's rate | Women | Women's defaults | Women's rate | Gap |
+|---|---|---|---|---|---|---|---|
+| no recorded delay | 21,417 | 1,980 | 9.24% | 39,762 | 2,438 | 6.13% | +3.11 |
+| mild | 9,875 | 1,175 | 11.90% | 18,566 | 1,635 | 8.81% | +3.09 |
+| heavy | 1,004 | 137 | 13.65% | 1,607 | 145 | 9.02% | +4.63 |
+| no history | 72,763 | 7,363 | 10.12% | 142,513 | 9,952 | 6.98% | +3.14 |
+| **Total** | **105,059** | **10,655** | **10.14%** | **202,448** | **14,170** | **7.00%** | **+3.14** |
+
+- Reconciliation (verified): men and women add up to 105,059 and 202,448, and their defaults to 10,655 and 14,170. Men plus women equal the category totals and defaults of Finding 6, except in "no history" where 4 applicants (gender `XNA`, no defaults) make up the difference (72,763 + 142,513 = 215,276 against 215,280), so all 4 applicants with unknown gender are in "no history" (derived).
+- Men default more than women in every category, by about 3 to 4.6 points; by a rough margin of error (own estimate) the gaps are clear in each category.
+- Within each gender, default rises with delay: men 9.24%, 11.90%, 13.65%; women 6.13%, 8.81%, 9.02% (no recorded delay, mild, heavy). The credit-history pattern is therefore not an effect of the gender mix. Heavy against mild is not clearly different within either gender (heavy groups have 1,004 men and 1,607 women, margins of roughly 2 and 1.4 points).
+- "No history" applicants default above "no recorded delay" applicants in both genders (10.12% against 9.24% for men, 6.98% against 6.13% for women).
+- Limits: association only; the other limits of Finding 6 apply.
+
 ## 5. Limits
 
 - **Association only.** None of the findings show cause. Only Finding 5 looks inside a second variable (contract type); income, age, job type, loan size and similar factors are not controlled anywhere.
@@ -370,7 +484,7 @@ Unit: one application. Groups from `FLAG_OWN_CAR` and `FLAG_OWN_REALTY` (only th
 - **Applicant means one row of the application table.** The Data page describes one row as one loan in the sample. `app_train` has no separate person ID column, so unique customers cannot be counted.
 - **Gender is a sensitive attribute.** Finding 5 describes this dataset only. It is not a recommendation to use gender in credit decisions.
 - **Scope.** Only `app_train` has `TARGET` (`app_test` is not used for results). The findings describe this Kaggle dataset, not lenders or borrowers in general.
-- **Not built.** No cleaned tables, no predictive model, no PostgreSQL schema, no dashboard.
+- **Not built.** No cleaned tables, no predictive model, no PostgreSQL schema; the dashboard is built in Power BI, and the numbers for Findings 11 and 12 have not yet been reproduced in SQL.
 
 ## 6. Assumptions not yet verified
 
@@ -412,3 +526,5 @@ Unit: one application. Groups from `FLAG_OWN_CAR` and `FLAG_OWN_REALTY` (only th
 13. `bureau` credit type vs default (next candidate): credits per `CREDIT_TYPE` must add to 1,716,428; roll up to one row per applicant with yes/no flags per type, left join from `app_train`; groups overlap because an applicant can hold several types, so they will not add up to 307,511.
 14. Finding 9 follow-up: read the description lines of `AMT_BALANCE`, `AMT_CREDIT_LIMIT_ACTUAL` and `AMT_RECEIVABLE_PRINCIPAL`; use the share of flagged months instead of the count (card-months per group already printed); check the ratio distribution (rows above 100%, limit of zero or less); use timing (`MONTHS_BALANCE`) to see whether recent maxing out matters more.
 15. Finding 10 follow-up: compare car and no-car applicants within income bands (does the gap remain?); use median income; check the 5 extra `OWN_CAR_AGE` nulls (count rows with `FLAG_OWN_CAR` = Y and a null car age).
+16. Finding 11 follow-up: how many of the 55,374 applicants with the `DAYS_EMPLOYED` placeholder are in "No Data" occupation (hypothesis: most); reproduce the occupation tables in SQL; add a minimum group size rule to the report.
+17. Findings 11 and 12 (built in Power BI): reproduce the key tables (occupation, education, gender within each) in a DuckDB query and confirm the same counts; fix the average income measure in the gender tables.
