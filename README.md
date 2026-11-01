@@ -10,11 +10,11 @@ It is a data-analysis project, not a prediction project: **no model was built**,
 |---|---|
 | Profiling of all 8 tables (shapes, nulls, keys) | Done |
 | Placeholder and quality checks | Partly done (two columns checked, more listed in the log) |
-| Ten findings (Findings 1 to 10 in the log) | Done (Finding 9 is still being refined) |
+| Thirteen findings (Findings 1 to 13 in the log) | Done (Finding 9 is still being refined; Findings 11 and 12 were built in Power BI) |
 | Cleaned tables | Not done (cleaning rules are proposed, not applied) |
 | Controls for other factors (income, age, and so on) | Not done |
 | PostgreSQL star schema | Planned, not started |
-| Dashboard | Planned, not started |
+| Dashboard | Built in Power BI (three pages: occupation, gender by occupation, credit history); screenshots in `images/` |
 
 ## Data
 
@@ -46,6 +46,22 @@ All numbers are in the data quality log with their evidence and checks.
 9. **Past refusals.** 32.62% of applicants had at least one earlier refused application at Home Credit. They default at 10.32%, against 7.08% for applicants with an approved earlier application and no refusal and 5.96% for applicants with no earlier application. Association only; the number of earlier applications is not yet controlled.
 10. **Credit card utilization.** Among the 28.26% of applicants with earlier Home Credit card records, those with at least one month above 90% of the limit default at 11.31%, against 5.94% for card holders who never did and 7.84% for applicants without card records. Association only; the measure mixes in the length of card history and is being refined.
 11. **Car and house ownership.** Applicants who own a car default less (7.04% to 7.33%) than those without one (8.28% to 8.99%) and have higher average income, so income may explain it (untested). House ownership shows no consistent pattern.
+12. **Occupation.** Low-skill laborers (17.15%) and drivers (11.33%) default most among occupations; accountants default least (4.83%). Applicants with no occupation recorded (96,391) default at 6.51%. Men default more than women in most large occupations, so the gender gap is not only about which jobs they hold. Small occupations (under about 1,000 applicants) are not clearly different from the average.
+13. **Education.** Default rate falls as education level rises (10.93% for lower secondary, 8.94% for secondary, 5.36% for higher education); the groups with very few applicants are not interpreted. Men default more than women at every education level with enough applicants.
+14. **Credit history by gender.** The credit-history category was rebuilt in Power BI and reproduces the SQL result exactly. Within each gender, default rises with past delay (men 9.24%, 11.90%, 13.65%; women 6.13%, 8.81%, 9.02% for no recorded delay, mild, heavy), and men default more than women in every category, so the credit-history pattern is not an effect of the gender mix.
+
+## Dashboard
+
+A three-page Power BI report built on applicant-level columns of `application_train` and on the credit-history category built from `bureau_balance` and `bureau`. The `.pbix` file is not included because it holds row-level competition data; the screenshots show the pages.
+
+![Default risk by occupation](<img width="1312" height="742" alt="Screenshot 2026-11-01 221210" src="https://github.com/user-attachments/assets/36125c69-605a-4577-a48d-7dfe4cb25243" />
+)
+
+![Default risk by gender and occupation](<img width="1315" height="747" alt="Screenshot 2026-11-01 221220" src="https://github.com/user-attachments/assets/ee895fe9-827c-4a56-b5cf-3a06e27ac407" />
+)
+
+![Default rate by credit history category and gender](<img width="1318" height="745" alt="Screenshot 2026-11-01 221228" src="https://github.com/user-attachments/assets/4e4f92ea-0446-4568-9b8f-397887056605" />
+)
 
 ## Method
 
@@ -69,6 +85,7 @@ See section 5 of the log for the full list.
 - `README.md`: this file.
 - `data_quality_log.md`: the full log with evidence, decisions, limits, corrections and open items.
 - `notebooks/`: the notebook(s) containing the SQL and pandas code (export from Kaggle).
+- `images/`: screenshots of the Power BI dashboard pages. The `.pbix` file itself is not included, because it holds applicant-level data from the competition.
 - `.gitignore`: keeps the raw data out of the repository.
 
 ## How to reproduce
