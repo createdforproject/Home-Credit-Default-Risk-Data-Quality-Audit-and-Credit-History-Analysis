@@ -54,14 +54,14 @@ All numbers are in the data quality log with their evidence and checks.
 
 A three-page Power BI report built on applicant-level columns of `application_train` and on the credit-history category built from `bureau_balance` and `bureau`. The `.pbix` file is not included because it holds row-level competition data; the screenshots show the pages.
 
-![Default risk by occupation](<img width="1312" height="742" alt="Screenshot 2026-11-01 221210" src="https://github.com/user-attachments/assets/36125c69-605a-4577-a48d-7dfe4cb25243" />
-)
+![Default risk by occupation](https://github.com/user-attachments/assets/36125c69-605a-4577-a48d-7dfe4cb25243)
 
-![Default risk by gender and occupation](<img width="1315" height="747" alt="Screenshot 2026-11-01 221220" src="https://github.com/user-attachments/assets/ee895fe9-827c-4a56-b5cf-3a06e27ac407" />
-)
 
-![Default rate by credit history category and gender](<img width="1318" height="745" alt="Screenshot 2026-11-01 221228" src="https://github.com/user-attachments/assets/4e4f92ea-0446-4568-9b8f-397887056605" />
-)
+![Default risk by gender and occupation](https://github.com/user-attachments/assets/ee895fe9-827c-4a56-b5cf-3a06e27ac407)
+
+
+![Default rate by credit history category and gender](https://github.com/user-attachments/assets/4e4f92ea-0446-4568-9b8f-397887056605)
+
 
 ## Method
 
